@@ -6,7 +6,9 @@
   "description": "Twitch chat spawns short co-op quests shown in an OBS browser overlay.",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "start:mock": "CHATQUEST_MOCK=1 node src/server.js",
+    "dev": "node --watch src/server.js",
+    "smoke": "bash scripts/smoke.sh"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

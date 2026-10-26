@@ -1,24 +1,55 @@
 const $ = (id) => document.getElementById(id);
-const FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+const FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
 function render(s) {
-  if (!s.quest) return;
+  if (!s.quest) {
+    $('card').classList.add('hidden');
+    return;
+  }
   $('card').classList.remove('hidden');
+  $('card').classList.remove('complete');
   $('title').textContent = s.quest.title;
-  $('fill').style.width = `${(100 * s.quest.progress) / s.quest.goal}%`;
+  const pct = Math.min(100, (100 * s.quest.progress) / Math.max(1, s.quest.goal));
+  $('fill').style.width = `${pct}%`;
   $('progress').textContent = `${s.quest.progress} / ${s.quest.goal}`;
-  $('heroes').textContent = s.contributors;
+  $('heroes').textContent = s.contributors ?? 0;
 }
+
+function flashDie(user, die) {
+  const face = FACES[die - 1] || '🎲';
+  $('dice').innerHTML = `<span class="die">${face}</span> ${user} rolled ${die}`;
+}
+
 function connect() {
-  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${proto}://${location.host}/ws`);
   ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
+    let m;
+    try {
+      m = JSON.parse(e.data);
+    } catch {
+      return;
+    }
     if (m.type === 'roll') {
-      $('dice').innerHTML = `<span class="die">${FACES[m.die - 1]}</span> ${m.user} rolled ${m.die}`;
+      flashDie(m.user, m.die);
+      render(m);
+      return;
+    }
+    if (m.type === 'join') {
+      $('dice').textContent = m.wasNew ? `${m.user} joined the party` : `${m.user} is already in`;
+      render(m);
+      return;
     }
     if (m.type === 'complete') {
       render(m);
-      $('title').textContent = `✅ ${m.quest.title} complete!`;
+      $('card').classList.add('complete');
+      $('title').textContent = `✅ ${(m.quest && m.quest.title) || 'Quest'} complete!`;
       setTimeout(() => $('card').classList.add('hidden'), 6000);
+      return;
+    }
+    if (m.type === 'stop') {
+      $('dice').textContent = 'Quest ended';
+      $('card').classList.add('hidden');
       return;
     }
     render(m);
