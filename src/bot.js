@@ -1,4 +1,4 @@
-// Twitch chat bot + quest state. EventSub (follows/subs/raids) hooks are TODO.
+// Twitch chat bot + quest state. EventSub (follows/subs/raids) wired via engine hooks.
 import tmi from 'tmi.js';
 
 const QUESTS = [
@@ -23,6 +23,42 @@ export function createQuestEngine(broadcast) {
     const payload = { type, ...state(), ...extra };
     broadcast(payload);
     return payload;
+  };
+
+  const FOLLOW_BOOST = Number(process.env.CHATQUEST_FOLLOW_BOOST) || 3;
+  const SUB_BOOST = Number(process.env.CHATQUEST_SUB_BOOST) || 6;
+  const RAID_BOOST_CAP = Number(process.env.CHATQUEST_RAID_BOOST_CAP) || 15;
+
+  const applyBoost = (user, amount, reason) => {
+    const name = String(user || 'anon').slice(0, 32);
+    const n = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!quest) return { started: false, boosted: false, amount: 0, reason, ok: false, error: 'no_quest' };
+    contributors.add(name);
+    quest.progress = Math.min(quest.goal, quest.progress + n);
+    push('boost', { user: name, amount: n, reason });
+    let completed = false;
+    if (quest.progress >= quest.goal) {
+      completed = true;
+      push('complete');
+      quest = null;
+    }
+    return { started: false, boosted: true, amount: n, reason, completed, user: name, ...state() };
+  };
+
+  const startOrBoost = (user, amount, reason) => {
+    if (!quest) {
+      const started = (() => {
+        const i = Math.floor(Math.random() * QUESTS.length);
+        const q = QUESTS[i];
+        quest = { ...q, progress: 0, startedAt: Date.now() };
+        contributors.clear();
+        const name = String(user || 'anon').slice(0, 32);
+        contributors.add(name);
+        return push('quest', { user: name, reason });
+      })();
+      return { started: true, boosted: false, amount: 0, reason, quest: started.quest, ...state() };
+    }
+    return applyBoost(user, amount, reason);
   };
 
   return {
@@ -67,6 +103,23 @@ export function createQuestEngine(broadcast) {
       contributors.clear();
       push('stop');
       return { ok: true, ...prev };
+    },
+    /** EventSub: follow starts a quest if none, else boosts progress. */
+    onFollow(user) {
+      return startOrBoost(user, FOLLOW_BOOST, 'follow');
+    },
+    /** EventSub: subscribe starts or boosts. */
+    onSubscribe(user, _meta = {}) {
+      return startOrBoost(user, SUB_BOOST, 'subscribe');
+    },
+    /** EventSub: raid starts or boosts (scaled by viewers, capped). */
+    onRaid(fromUser, viewers = 0) {
+      const v = Math.max(0, Math.floor(Number(viewers) || 0));
+      const amount = Math.min(RAID_BOOST_CAP, Math.max(5, v));
+      return startOrBoost(fromUser, amount, 'raid');
+    },
+    boost(user, amount, reason = 'boost') {
+      return applyBoost(user, amount, reason);
     },
   };
 }

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { createQuestEngine, startBot } from './bot.js';
+import { startEventSub } from './eventsub.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = express();
@@ -32,15 +33,46 @@ app.post('/api/test/roll', (req, res) => {
   res.json(engine.roll(user));
 });
 app.post('/api/test/stop', (_req, res) => res.json(engine.stop()));
+app.post('/api/test/follow', (req, res) => {
+  const user = req.query.user || req.body?.user || 'follower';
+  res.json(engine.onFollow(user));
+});
+app.post('/api/test/subscribe', (req, res) => {
+  const user = req.query.user || req.body?.user || 'subscriber';
+  res.json(engine.onSubscribe(user));
+});
+app.post('/api/test/raid', (req, res) => {
+  const user = req.query.user || req.body?.user || 'raider';
+  const viewers = Number(req.query.viewers || req.body?.viewers || 10);
+  res.json(engine.onRaid(user, viewers));
+});
 
 const bot = startBot(engine);
+const eventsub = startEventSub(engine, {
+  onChatSay: (msg) => {
+    try {
+      const channel = process.env.TWITCH_CHANNEL;
+      if (bot && channel) bot.say(channel, msg);
+    } catch (e) {
+      console.error('[server] eventsub chat', e?.message || e);
+    }
+  },
+});
+
 const port = Number(process.env.PORT) || 3000;
 server.listen(port, () => {
   console.log(`[server] overlay: http://localhost:${port}/overlay/`);
-  console.log(`[server] mock APIs: POST /api/test/quest|join|roll|stop  GET /api/state`);
+  console.log(
+    `[server] mock APIs: POST /api/test/quest|join|roll|stop|follow|subscribe|raid  GET /api/state`,
+  );
 });
 
 function shutdown() {
+  try {
+    eventsub?.disconnect?.();
+  } catch {
+    /* ignore */
+  }
   try {
     bot?.disconnect?.();
   } catch {

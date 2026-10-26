@@ -4,3 +4,5 @@ node_modules/
 !.env.example
 *.log
 .DS_Store
+
+CODEX_SESSION_ID.txt
