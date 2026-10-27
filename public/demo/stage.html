@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ChatQuest · live Twitch demo</title>
+<style>
+  html, body { margin:0; height:100%; background:#0b0b12; color:#ddd; font-family: system-ui, sans-serif; overflow:hidden; }
+  .bar { height:36px; display:flex; align-items:center; gap:14px; padding:0 12px; background:#14141f; border-bottom:1px solid #2a2a3a; font-size:13px; }
+  .bar b { color:#c9a6ff; }
+  .bar .tag { color:#7dffb3; }
+  .row { display:flex; height:calc(100% - 36px); }
+  .pane { flex:1; position:relative; border-right:1px solid #2a2a3a; min-width:0; }
+  .pane:last-child { border-right:0; }
+  .label { position:absolute; top:8px; left:10px; z-index:2; background:rgba(0,0,0,.7); padding:4px 8px; border-radius:6px; font-size:12px; }
+  iframe { width:100%; height:100%; border:0; background:#000; }
+  .overlay-wrap { background: radial-gradient(ellipse at 30% 20%, #2a1848, #0b0b12 70%); }
+  .overlay-wrap iframe { background: transparent; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <b>ChatQuest Overlay</b>
+    <span>Codex × TwitchCon</span>
+    <span class="tag">REAL IRC · #satrtools</span>
+    <span id="clock"></span>
+  </div>
+  <div class="row">
+    <div class="pane">
+      <div class="label">Twitch chat · satrtools</div>
+      <iframe
+        id="chat"
+        src="https://www.twitch.tv/embed/satrtools/chat?parent=127.0.0.1&darkpopout"
+        allowfullscreen></iframe>
+    </div>
+    <div class="pane overlay-wrap">
+      <div class="label">OBS overlay · localhost:3000</div>
+      <iframe src="/overlay/" allowtransparency="true"></iframe>
+    </div>
+  </div>
+  <script>
+    const el = document.getElementById('clock');
+    setInterval(() => { el.textContent = new Date().toLocaleTimeString(); }, 500);
+  </script>
+</body>
+</html>

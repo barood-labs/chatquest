@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ChatQuest · Control Deck</title>
+  <style>
+    :root {
+      --bg: #0b0b12;
+      --panel: #14141f;
+      --line: #2a2a3a;
+      --accent: #9146ff;
+      --text: #e8e6f2;
+      --muted: #9a96b0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(ellipse at top left, #24143f, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 22px; border-bottom: 1px solid var(--line); background: #100f18cc;
+      position: sticky; top: 0; backdrop-filter: blur(8px);
+    }
+    header h1 { margin: 0; font-size: 18px; }
+    header a { color: #c9a6ff; text-decoration: none; margin-left: 14px; font-size: 13px; }
+    main { display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 16px; }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px;
+      box-shadow: 0 0 24px #9146ff22;
+    }
+    .panel h2 { margin: 0 0 10px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button, select, input {
+      border-radius: 10px; border: 1px solid var(--line); background: #1c1b2a; color: var(--text);
+      padding: 10px 12px; font: inherit;
+    }
+    button { cursor: pointer; background: linear-gradient(180deg, #6d3ccc, #4b238f); border-color: #9146ff88; font-weight: 700; }
+    button.secondary { background: #1c1b2a; font-weight: 600; }
+    button:hover { filter: brightness(1.08); }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+    iframe {
+      width: 100%; height: min(70vh, 720px); border: 0; border-radius: 12px;
+      background: radial-gradient(ellipse at 30% 20%, #2a1848, #0b0b12 70%);
+    }
+    #log {
+      margin-top: 10px; max-height: 220px; overflow: auto; font: 12px/1.45 ui-monospace, monospace;
+      background: #0a0a12; border-radius: 10px; padding: 10px; border: 1px solid var(--line);
+      white-space: pre-wrap;
+    }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #ffffff14; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ChatQuest Control Deck <span class="pill" id="mode">…</span></h1>
+    <div>
+      <a href="/overlay/" target="_blank">Open overlay</a>
+      <a href="/demo/stage.html" target="_blank">Demo stage</a>
+      <a href="https://youtu.be/4KVKrxAF93o" target="_blank">YouTube demo</a>
+    </div>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>Simulate</h2>
+      <label>Quest type / id</label>
+      <select id="selector">
+        <option value="">random</option>
+        <option>combat</option>
+        <option>escort</option>
+        <option>puzzle</option>
+        <option>rescue</option>
+        <option>hack</option>
+        <option>raid</option>
+        <option>survival</option>
+      </select>
+      <label>User</label>
+      <input id="user" value="alice" />
+      <label>Raid viewers</label>
+      <input id="viewers" type="number" value="12" min="1" />
+      <div class="grid" style="margin-top:12px">
+        <button id="btnQuest">Start quest</button>
+        <button class="secondary" id="btnJoin">Join</button>
+        <button class="secondary" id="btnRoll">Roll</button>
+        <button class="secondary" id="btnStop">Stop</button>
+        <button class="secondary" id="btnFollow">Follow boost</button>
+        <button class="secondary" id="btnSub">Sub boost</button>
+        <button class="secondary" id="btnRaid">Raid boost</button>
+        <button class="secondary" id="btnState">Refresh state</button>
+      </div>
+      <h2 style="margin-top:16px">Live state</h2>
+      <div id="log">Connecting…</div>
+    </section>
+    <section class="panel">
+      <h2>Overlay preview (OBS browser source)</h2>
+      <iframe id="ov" src="/overlay/" allowtransparency="true"></iframe>
+    </section>
+  </main>
+  <script>
+    const log = (x) => {
+      const el = document.getElementById('log');
+      el.textContent = typeof x === 'string' ? x : JSON.stringify(x, null, 2);
+    };
+    const user = () => encodeURIComponent(document.getElementById('user').value || 'tester');
+    async function post(path) {
+      const res = await fetch(path, { method: 'POST' });
+      const data = await res.json();
+      log(data);
+      return data;
+    }
+    document.getElementById('btnQuest').onclick = () => {
+      const sel = document.getElementById('selector').value;
+      const q = sel ? `?type=${encodeURIComponent(sel)}` : '';
+      return post('/api/test/quest' + q);
+    };
+    document.getElementById('btnJoin').onclick = () => post(`/api/test/join?user=${user()}`);
+    document.getElementById('btnRoll').onclick = () => post(`/api/test/roll?user=${user()}`);
+    document.getElementById('btnStop').onclick = () => post('/api/test/stop');
+    document.getElementById('btnFollow').onclick = () => post(`/api/test/follow?user=${user()}`);
+    document.getElementById('btnSub').onclick = () => post(`/api/test/subscribe?user=${user()}`);
+    document.getElementById('btnRaid').onclick = () => {
+      const v = document.getElementById('viewers').value || 12;
+      return post(`/api/test/raid?user=${user()}&viewers=${v}`);
+    };
+    document.getElementById('btnState').onclick = async () => {
+      log(await (await fetch('/api/state')).json());
+    };
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    ws.onopen = () => { document.getElementById('mode').textContent = 'live ws'; };
+    ws.onmessage = (e) => {
+      try { log(JSON.parse(e.data)); } catch { log(e.data); }
+    };
+    ws.onclose = () => { document.getElementById('mode').textContent = 'ws reconnecting'; };
+    fetch('/api/state').then((r) => r.json()).then(log).catch((e) => log(String(e)));
+  </script>
+</body>
+</html>

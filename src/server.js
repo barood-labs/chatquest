@@ -21,9 +21,12 @@ const broadcast = (msg) => {
 const engine = createQuestEngine(broadcast);
 wss.on('connection', (ws) => ws.send(JSON.stringify({ type: 'state', ...engine.state() })));
 
-// Local test / mock endpoints (simulate chat without Twitch)
 app.get('/api/state', (_req, res) => res.json(engine.state()));
-app.post('/api/test/quest', (_req, res) => res.json(engine.start()));
+app.get('/api/catalog', (_req, res) => res.json({ quests: engine.catalog() }));
+app.post('/api/test/quest', (req, res) => {
+  const selector = req.query.type || req.query.id || req.body?.type || req.body?.id;
+  res.json(engine.start(selector || undefined));
+});
 app.post('/api/test/join', (req, res) => {
   const user = req.query.user || req.body?.user || 'tester';
   res.json(engine.join(user));
@@ -61,9 +64,11 @@ const eventsub = startEventSub(engine, {
 
 const port = Number(process.env.PORT) || 3000;
 server.listen(port, () => {
-  console.log(`[server] overlay: http://localhost:${port}/overlay/`);
+  console.log(`[server] overlay:  http://localhost:${port}/overlay/`);
+  console.log(`[server] control:  http://localhost:${port}/control/`);
+  console.log(`[server] demo:     http://localhost:${port}/demo/stage.html`);
   console.log(
-    `[server] mock APIs: POST /api/test/quest|join|roll|stop|follow|subscribe|raid  GET /api/state`,
+    `[server] mock APIs: POST /api/test/quest|join|roll|stop|follow|subscribe|raid  GET /api/state|/api/catalog`,
   );
 });
 
